@@ -2,7 +2,7 @@
 
 ## Dataset Overview
 
-For this assignment, I selected the **Retail Sales: Electronics Stores** time series from the Federal Reserve Bank of St. Louis (FRED). The original source of the data is the **U.S. Census Bureau's Monthly Retail Trade and Food Services survey**.
+For this assignment, I selected the **Retail Sales: Electronics Stores** time series from the Federal Reserve Bank of St. Louis (FRED). The original source of the data is the **U.S. Census Bureau's Monthly Retail Trade and Food Services Survey (MRTS)**.
 
 The dataset contains monthly estimates of retail sales for electronics stores in the United States. Sales are measured in **millions of dollars** and the data is **not seasonally adjusted**. I selected observations from **January 2016 through December 2025**, giving the dataset 120 monthly observations across a ten-year period.
 
