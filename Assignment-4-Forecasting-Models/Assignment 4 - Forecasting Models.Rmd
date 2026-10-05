@@ -1,0 +1,209 @@
+---
+title: "Assignment 4 - Forecasting Models"
+output: html_document
+date: "2026-10-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+```{r}
+library(forecast)
+library(ggplot2)
+```
+
+## Import Data
+```{r}
+electronics <- read.csv("Retail Sales - Electronics Stores.csv")
+head(electronics)
+```
+
+## Create Time Series
+```{r}
+electronics_ts <- ts(electronics$MRTSSM443142USN, start = c(2016, 1), frequency = 12)
+electronics_ts
+```
+
+## Plot the Time Series
+```{r}
+plot(electronics_ts, main = "Retail Sales: Electronics Stores", xlab = "Year", ylab = "Millions of Dollars")
+```
+
+## Mean Forecast
+```{r}
+mean_forecast <- meanf(electronics_ts, h = 12)
+mean_forecast
+plot(mean_forecast)
+```
+
+The mean forecasting method predicts future values using the average of all historical observations. The model forecasts monthly electronics store sales of approximately $5,866.7 million for each month of 2026. The forecast is constant because the mean method does not account for changes in trend or seasonal patterns. This may be a limitation for this dataset because the historical sales data show noticeable seasonal spikes near the end of each year.
+
+## Naive Forecast
+```{r}
+naive_forecast <- naive(electronics_ts, h = 12)
+naive_forecast
+plot(naive_forecast)
+```
+
+The naive forecasting method uses the most recent observation as the forecast for all future periods. Since electronics store sales were $8,799 million in December 2025, the model forecasts $8,799 million for each month of 2026. The prediction intervals become wider further into the forecast period, indicating greater uncertainty. This method may not fit the data well because December has historically been a high-sales month, so using December sales to predict every month does not account for the seasonal pattern in the data.
+
+## Random Walk Forecast
+```{r}
+rw_forecast <- rwf(electronics_ts, h = 12)
+rw_forecast
+plot(rw_forecast)
+```
+
+## Random Walk with Drift
+```{r}
+drift_forecast <- rwf(electronics_ts, h = 12, drift = TRUE)
+drift_forecast
+plot(drift_forecast)
+```
+
+The random walk model produces the same forecasts as the naive method, using the most recent value of $8,799 million for each future month. When drift is added, the forecast gradually increases from approximately $8,823.1 million in January 2026 as the model incorporates the average change over time. However, neither model accounts for the recurring monthly seasonal pattern in the data. The widening prediction intervals also indicate that uncertainty increases as the forecast extends further into the future.
+
+## Seasonal Naive Forecast
+```{r}
+snaive_forecast <- snaive(electronics_ts, h = 12)
+snaive_forecast
+plot(snaive_forecast)
+```
+
+The seasonal naive method forecasts each month using the value from the same month of the previous year. For example, January 2026 is forecasted at $5,473 million, which is the observed value from January 2025. Unlike the mean and naive methods, this model captures the recurring seasonal pattern in the data, including the higher electronics store sales near the end of the year. This makes the seasonal naive method more appropriate for a time series with noticeable monthly seasonality.
+
+## Moving Average
+```{r}
+MA5 <- ma(electronics_ts, order = 5)
+MA9 <- ma(electronics_ts, order = 9)
+plot(electronics_ts, main = "Moving Average", xlab = "Year", ylab = "Millions of Dollars")
+
+lines(MA5, col = "red")
+lines(MA9, col = "blue")
+legend("topright", legend = c("Original", "MA(5)", "MA(9)"), col = c("black", "red", "blue"), lty = 1)
+```
+
+The moving average method smooths short-term fluctuations in the time series to make the underlying pattern easier to observe. The MA(5) line follows changes in electronics store sales more closely, while the MA(9) line is smoother because it averages over a larger number of periods. Both moving averages reduce the large monthly fluctuations in the original series, including the seasonal sales spikes. These moving averages are used here primarily to examine and smooth the historical pattern rather than to generate the 12-month forecasts used by the other models.
+
+## ETS Forecast
+```{r}
+ets_model <- ets(electronics_ts)
+ets_model
+ets_forecast <- forecast(ets_model, h = 12)
+ets_forecast
+plot(ets_forecast)
+```
+
+The ETS model automatically selected an ETS(A,N,A) specification, representing additive error, no trend, and additive seasonality. This indicates that the model identified a seasonal pattern in electronics store sales but did not identify a trend component that needed to be included in the forecast. Unlike the mean, naive, and random walk methods, the ETS forecasts change across the months of 2026 to account for seasonality. For example, the model forecasts approximately $5,620.8 million in January 2026 and $4,907.5 million in April 2026. The forecast plot shows that the model continues the recurring seasonal pattern observed in the historical data.
+
+## Holt-Winters Forecast
+```{r}
+HW_model <- HoltWinters(electronics_ts)
+HW_model
+HW_forecast <- forecast(HW_model, h = 12)
+HW_forecast
+plot(HW_forecast)
+```
+
+The Holt-Winters model uses level, trend, and an additive seasonal component to forecast electronics store sales. The fitted model produced smoothing parameters of alpha = 0.831, beta = 0, and gamma = 1. The model identifies a strong seasonal component, which is consistent with the recurring increases in electronics store sales near the end of each year. The estimated trend is relatively small, while the forecasts continue to show substantial monthly variation. For example, the model forecasts approximately $5,926.1 million in January 2026 and $4,988.1 million in April 2026.
+
+## Simple Exponential Smoothing
+```{r}
+ses_forecast <- ses(electronics_ts, h = 12)
+ses_forecast
+plot(ses_forecast)
+```
+
+Simple exponential smoothing forecasts future values by estimating the current level of the time series while giving more weight to recent observations. The model forecasts approximately $8,015.4 million for each month of 2026. The forecast remains constant because simple exponential smoothing does not include a trend or seasonal component. This is a limitation for the electronics store sales data because the historical series shows a recurring seasonal pattern, particularly the higher sales near the end of each year.
+
+## Model Accuracy Comparison
+To compare the forecasting models, the data were divided into a training set and a test set. The models were trained using observations from 2016 through 2024 and used to forecast the 12 months of 2025. These forecasts were then compared with the actual 2025 sales values.
+
+```{r}
+train <- window(electronics_ts, end = c(2024, 12))
+test <- window(electronics_ts, start = c(2025, 1))
+length(train)
+length(test)
+```
+### Forecast the Test Period
+```{r}
+mean_test <- meanf(train, h = 12)
+naive_test <- naive(train, h = 12)
+drift_test <- rwf(train, h = 12, drift = TRUE)
+snaive_test <- snaive(train, h = 12)
+ets_test <- forecast(ets(train), h = 12)
+HW_test <- forecast(HoltWinters(train), h = 12)
+ses_test <- ses(train, h = 12)
+```
+
+### RMSE Comparison
+```{r}
+rmse_results <- data.frame(
+  Model = c("Mean", "Naive", "Random Walk with Drift", "Seasonal Naive", "ETS", "Holt-Winters", "Simple Exponential Smoothing"),
+  RMSE = c(
+    accuracy(mean_test, test)["Test set", "RMSE"],
+    accuracy(naive_test, test)["Test set", "RMSE"],
+    accuracy(drift_test, test)["Test set", "RMSE"],
+    accuracy(snaive_test, test)["Test set", "RMSE"],
+    accuracy(ets_test, test)["Test set", "RMSE"],
+    accuracy(HW_test, test)["Test set", "RMSE"],
+    accuracy(ses_test, test)["Test set", "RMSE"]
+  )
+)
+rmse_results$RMSE <- round(rmse_results$RMSE, 2)
+rmse_results
+```
+
+RMSE was used to compare the forecasting accuracy of the models using 2025 as the test period. A lower RMSE indicates better forecasting accuracy. The Seasonal Naive model produced the lowest RMSE of 196.07, followed by ETS with an RMSE of 261.66 and Holt-Winters with an RMSE of 278.98. Therefore, based on RMSE, the Seasonal Naive model was the most accurate model for this dataset. This result suggests that the recurring yearly seasonal pattern is particularly important when forecasting monthly electronics store sales.
+
+## Comparison of Model Forecasts
+The following chart compares the forecasts produced by the different forecasting models for 2026.
+
+```{r}
+layout(matrix(c(1, 2), nrow = 2),
+       heights = c(4, 1))
+par(mar = c(4, 4, 4, 2) + 0.1)
+
+plot(electronics_ts, xlim = c(2023, 2027), ylim = c(2500, 10500), main = "Comparison of Forecasting Models", xlab = "Year", ylab = "Millions of Dollars")
+
+lines(mean_forecast$mean, col = "red", lwd = 2)
+lines(naive_forecast$mean, col = "blue", lwd = 2)
+lines(drift_forecast$mean, col = "green", lwd = 2)
+lines(snaive_forecast$mean, col = "purple", lwd = 2)
+lines(ets_forecast$mean, col = "orange", lwd = 2)
+lines(HW_forecast$mean, col = "brown", lwd = 2)
+lines(ses_forecast$mean, col = "pink", lwd = 2)
+
+par(mar = c(0, 0, 0, 0))
+
+plot.new()
+
+legend("center",
+       legend = c("Actual",
+                  "Mean",
+                  "Naive",
+                  "Random Walk with Drift",
+                  "Seasonal Naive",
+                  "ETS",
+                  "Holt-Winters",
+                  "SES"),
+       col = c("black",
+               "red",
+               "blue",
+               "green",
+               "purple",
+               "orange",
+               "brown",
+               "pink"),
+       lty = 1,
+       lwd = 2,
+       ncol = 4,
+       cex = 0.7,
+       bty = "n")
+
+layout(1)
+```
+
+The combined forecast plot shows noticeable differences among the forecasting methods. The Mean model produces a constant forecast near the historical average, while the Naive, Random Walk with Drift, and Simple Exponential Smoothing models produce relatively high forecasts after the elevated December 2025 observation. In contrast, the Seasonal Naive, ETS, and Holt-Winters models reproduce the monthly variation seen in the historical data. These differences demonstrate the importance of accounting for seasonality when forecasting electronics store sales. The accuracy comparison further supports this observation, as the Seasonal Naive model produced the lowest RMSE among the models tested.
