@@ -1,0 +1,189 @@
+---
+title: "Assignment 5 - Decomposition"
+output: html_document
+date: "2026-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+For this assignment, I am using the Retail Sales: Electronics Stores dataset from the Federal Reserve Bank of St. Louis (FRED). The data contains monthly retail sales in the United States from January 2016 through December 2025, measured in millions of dollars.
+
+The purpose of this assignment is to decompose the time series into its trend, seasonal, and irregular components to better understand patterns in electronics retail sales.
+
+# Importing the Data
+
+```{r import-data}
+retail_data <- read.csv("Retail Sales - Electronics Stores.csv")
+
+head(retail_data)
+str(retail_data)
+```
+
+# Creating the Time Series
+
+```{r create-time-series}
+retail_ts <- ts(
+  retail_data$MRTSSM443142USN,
+  start = c(2016, 1),
+  frequency = 12
+)
+
+plot(
+  retail_ts,
+  main = "Monthly Retail Sales: Electronics Stores (2016-2025)",
+  xlab = "Year",
+  ylab = "Sales (Millions of Dollars)",
+  col = "blue",
+  lwd = 2
+)
+```
+
+# Classical Additive Decomposition
+
+I used additive decomposition to separate monthly electronics retail sales into trend, seasonal, and random components. This helps identify recurring seasonal patterns and changes in sales over time.
+
+```{r additive-decomposition}
+retail_decomp <- decompose(retail_ts, type = "additive")
+
+plot(retail_decomp)
+```
+
+## Interpretation of Additive Decomposition
+
+The additive decomposition shows a clear seasonal pattern in electronics retail sales, with sales increasing significantly toward the end of each year. This is likely related to holiday shopping, when consumers purchase more electronics.
+
+The trend component indicates that electronics retail sales were relatively stable before 2020, followed by a sharp decline during 2020 and a gradual recovery afterward. The random component also shows an unusually large negative fluctuation around 2020, which may be associated with disruptions caused by the COVID-19 pandemic.
+
+Overall, the decomposition suggests that seasonal demand plays an important role in electronics retail sales. The relatively consistent size of the seasonal fluctuations also makes the additive model a reasonable choice for this dataset.
+
+# STL Decomposition
+
+In addition to classical additive decomposition, I used STL decomposition to examine the trend, seasonal, and remainder components of the electronics retail sales time series.
+
+```{r stl-decomposition}
+retail_stl <- stl(retail_ts, s.window = "periodic")
+
+plot(retail_stl)
+```
+
+## Interpretation of STL Decomposition
+
+The STL decomposition shows similar patterns to the classical additive decomposition. Electronics retail sales have a strong seasonal pattern, with noticeable increases toward the end of each year. The trend component shows a sharp decline around 2020, followed by a recovery and relatively stable sales in later years.
+
+The remainder component shows that most unexplained fluctuations are relatively small, except for a significant negative movement around 2020. This may reflect the impact of the COVID-19 pandemic on retail activity.
+
+Both decomposition methods highlight the importance of seasonality in electronics retail sales and show how unusual events can affect the overall trend.
+
+# Seasonal Adjustment
+
+Seasonal adjustment removes recurring seasonal fluctuations from the original time series. I used the STL decomposition to calculate seasonally adjusted electronics retail sales and compare them with the original data.
+
+```{r seasonal-adjustment}
+library(forecast)
+
+# Examine the components stored in the STL decomposition
+attributes(retail_stl)
+
+# Calculate seasonally adjusted sales
+retail_adjusted <- seasadj(retail_stl)
+
+# Plot original and seasonally adjusted sales
+plot(
+  retail_ts,
+  main = "Original vs. Seasonally Adjusted Electronics Retail Sales",
+  xlab = "Year",
+  ylab = "Sales (Millions of Dollars)",
+  col = "blue",
+  lwd = 2
+)
+
+lines(retail_adjusted, col = "red", lwd = 2)
+
+legend(
+  "topright",
+  legend = c("Original Sales", "Seasonally Adjusted Sales"),
+  col = c("blue", "red"),
+  lty = 1,
+  lwd = 2,
+  bty = "n"
+)
+```
+
+## Interpretation of Seasonal Adjustment
+
+The seasonally adjusted data shows a smoother pattern compared to the original electronics retail sales. The large sales increases that occur toward the end of each year are reduced after removing the seasonal component, making it easier to observe changes in sales over time.
+
+Both the original and seasonally adjusted series show a significant decline around 2020, suggesting that this decrease was not caused by normal seasonal fluctuations. Sales recovered afterward and remained relatively stable in later years.
+
+Overall, seasonal adjustment helps distinguish recurring shopping patterns from other changes in electronics retail sales.
+
+
+# Multiplicative Decomposition
+
+To compare decomposition methods, I also performed multiplicative decomposition. Unlike additive decomposition, the multiplicative model represents seasonal fluctuations as proportions of the underlying sales level.
+
+```{r multiplicative-decomposition}
+retail_mult <- decompose(retail_ts, type = "multiplicative")
+
+plot(retail_mult)
+```
+
+## Interpretation of Multiplicative Decomposition
+
+The multiplicative decomposition shows a recurring seasonal pattern in electronics retail sales, with the largest increases occurring toward the end of each year. Unlike additive decomposition, the seasonal component is expressed as a proportion of the underlying sales level rather than a fixed amount.
+
+The trend component shows a sharp decline around 2020, followed by a gradual recovery. The random component also shows an unusually large negative fluctuation during this period, indicating that the decline cannot be explained by normal seasonal patterns alone.
+
+Comparing the two methods, additive decomposition appears to be a reasonable choice because the seasonal fluctuations remain relatively consistent in absolute size across the years. However, both methods reveal similar overall patterns in the dataset.
+
+
+# Classical Decomposition Components and Seasonal Adjustment
+
+The classical additive decomposition can also be used to calculate seasonally adjusted sales. I examined the decomposition attributes and compared the original series with the seasonally adjusted values.
+
+```{r classical-seasonal-adjustment}
+# Examine classical decomposition attributes
+attributes(retail_decomp)
+
+# Calculate seasonally adjusted sales
+retail_classical_adjusted <- seasadj(retail_decomp)
+
+# Compare original and adjusted sales
+plot(
+  retail_ts,
+  main = "Classical Additive Seasonal Adjustment",
+  xlab = "Year",
+  ylab = "Sales (Millions of Dollars)",
+  col = "blue",
+  lwd = 2
+)
+
+lines(retail_classical_adjusted, col = "red", lwd = 2)
+
+legend(
+  "topright",
+  legend = c("Original Sales", "Seasonally Adjusted Sales"),
+  col = c("blue", "red"),
+  lty = 1,
+  lwd = 2,
+  bty = "n"
+)
+```
+
+## Interpretation of Classical Seasonal Adjustment
+
+The classical additive seasonal adjustment shows a similar pattern to the STL seasonal adjustment. The original sales data contains large spikes toward the end of each year, while the seasonally adjusted series reduces these recurring fluctuations and makes the underlying sales movements easier to observe.
+
+Both series show a sharp decline around 2020, followed by a recovery in subsequent years. This suggests that the decline was not caused by normal seasonal patterns alone. Overall, the classical and STL approaches produce similar results, reinforcing the importance of accounting for seasonality when analyzing electronics retail sales.
+
+# Conclusion
+
+For this assignment, I analyzed monthly electronics retail sales from January 2016 through December 2025 using classical additive decomposition, STL decomposition, and multiplicative decomposition. I also compared the original sales data with seasonally adjusted series produced using both classical and STL methods.
+
+The results showed a strong recurring seasonal pattern, with electronics retail sales increasing significantly toward the end of each year. The decomposition methods also revealed a sharp decline around 2020, followed by a recovery and relatively stable sales in later years. This decline remained visible after seasonal adjustment, indicating that it was not simply the result of normal seasonal fluctuations.
+
+Overall, additive decomposition appears appropriate for this dataset because seasonal fluctuations are relatively consistent in absolute size. The analysis demonstrates how decomposition can help businesses better understand recurring demand patterns, identify unusual changes in sales, and support decisions related to inventory, staffing, and future planning.
