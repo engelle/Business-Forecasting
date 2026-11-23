@@ -1,0 +1,231 @@
+---
+title: "Assignment 7"
+author: "Yasmin Mohamed"
+date: "2026-11-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load required libraries
+library(forecast)
+library(tseries)
+library(ggplot2)
+library(knitr)
+
+# Read the dataset
+retail <- read.csv("Retail Sales - Electronics Stores.csv")
+
+# Convert sales data into a monthly time series
+retail_ts <- ts(
+  retail$MRTSSM443142USN,
+  start = c(2016, 1),
+  frequency = 12
+)
+
+# Plot the time series
+autoplot(retail_ts) +
+  labs(
+    title = "Monthly U.S. Electronics Store Retail Sales",
+    x = "Year",
+    y = "Retail Sales (Millions of Dollars)"
+  )
+```
+
+```{r}
+# Display time series, ACF, and PACF
+tsdisplay(retail_ts)
+
+# Check stationarity
+adf.test(retail_ts)
+kpss.test(retail_ts)
+
+# Determine differencing requirements
+ndiffs(retail_ts)
+nsdiffs(retail_ts)
+```
+
+### Initial Time Series Exploration
+
+The time series plot of monthly U.S. electronics store retail sales from January 2016 through December 2025 shows a strong recurring seasonal pattern, with noticeable sales spikes near the end of each year. These increases are likely associated with holiday shopping. The series also shows a significant decline in sales during 2020, followed by a recovery. Outside these fluctuations, there does not appear to be a consistent long-term upward or downward trend.
+
+The ACF and PACF plots show significant autocorrelation at seasonal lags, particularly around lag 12, suggesting an annual seasonal pattern in the monthly data.
+
+### Stationarity and Differencing
+
+The Augmented Dickey-Fuller (ADF) test returned a p-value of 0.01, providing evidence against the presence of a unit root. The KPSS test returned a reported p-value of 0.10, meaning there is insufficient evidence to reject level stationarity.
+
+The `ndiffs()` function recommended 0 nonseasonal differences, while `nsdiffs()` recommended 1 seasonal difference. Based on these results, I will investigate a Seasonal ARIMA model with nonseasonal differencing \(d = 0\), seasonal differencing \(D = 1\), and a seasonal period of 12 months.
+
+These results provide a starting point for identifying an appropriate ARIMA model, which will be evaluated using model diagnostics and forecasting accuracy.
+
+
+```{r}
+# Apply one seasonal difference (lag 12)
+retail_seasonal_diff <- diff(retail_ts, lag = 12)
+
+# Examine the seasonally differenced series
+tsdisplay(retail_seasonal_diff)
+
+# Check whether additional differencing is needed
+ndiffs(retail_seasonal_diff)
+
+# Examine ACF and PACF
+Acf(retail_seasonal_diff, lag.max = 36)
+Pacf(retail_seasonal_diff, lag.max = 36)
+```
+
+### Seasonal Differencing Results
+
+After applying one seasonal difference with a lag of 12 months, the recurring seasonal fluctuations were reduced. However, the series still shows noticeable fluctuations around 2020 and 2021, likely reflecting the effects of the COVID-19 pandemic.
+
+The ACF of the seasonally differenced series shows strong positive autocorrelation at the first few lags and negative autocorrelation around lag 12. The PACF shows a significant spike at lag 1, suggesting that autoregressive terms may be useful in modeling the remaining dependence.
+
+The `ndiffs()` function returned 0, indicating that no additional nonseasonal differencing is recommended. Therefore, a Seasonal ARIMA model with \(d = 0\), \(D = 1\), and a seasonal period of 12 will be considered, with the remaining model orders determined through model fitting and diagnostics.
+
+```{r}
+# Fit an automatic seasonal ARIMA model
+arima_fit <- auto.arima(
+  retail_ts,
+  seasonal = TRUE,
+  stepwise = FALSE,
+  approximation = FALSE
+)
+
+# Display the selected model
+summary(arima_fit)
+```
+
+### 1. ARIMA Model Output and Interpretation
+
+The `auto.arima()` function selected an ARIMA(1,0,1)(0,1,1)[12] model for the monthly U.S. electronics store retail sales data. This is a Seasonal ARIMA model that accounts for both nonseasonal relationships and annual seasonality.
+
+The nonseasonal portion, ARIMA(1,0,1), includes one autoregressive term (p = 1), no nonseasonal differencing (d = 0), and one moving-average term (q = 1). The seasonal portion, (0,1,1)[12], includes no seasonal autoregressive terms (P = 0), one seasonal difference (D = 1), and one seasonal moving-average term (Q = 1), with a seasonal period of 12 months.
+
+The estimated coefficients were 0.6653 for AR(1), 0.3857 for MA(1), and -0.6367 for seasonal MA(1). These terms capture relationships between observations and forecast errors over time, including seasonal effects.
+
+The model produced an AIC of 1619.07, an AICc of 1619.46, and a BIC of 1629.80. These criteria are useful for comparing models because they consider both model fit and complexity, with lower values generally preferred.
+
+The training set RMSE was 384.77 million dollars, and the MAE was 247.13 million dollars. The MAPE was approximately 5.03%, indicating that the model's fitted values differed from actual sales by approximately 5% on average in absolute percentage terms.
+
+Overall, the selected model captures both short-term dependence and the recurring annual seasonal pattern in electronics retail sales. However, residual analysis and out-of-sample accuracy testing are needed to determine whether the model adequately explains the remaining patterns and produces reliable forecasts.
+
+```{r}
+# Store ARIMA model residuals
+arima_residuals <- residuals(arima_fit)
+
+# Plot residual diagnostics
+checkresiduals(arima_fit)
+
+# Plot residual histogram
+hist(
+  arima_residuals,
+  main = "Histogram of ARIMA Residuals",
+  xlab = "Residuals",
+  col = "lightblue",
+  border = "white"
+)
+
+# Ljung-Box test for residual autocorrelation
+Box.test(
+  arima_residuals,
+  lag = 24,
+  fitdf = 3,
+  type = "Ljung-Box"
+)
+```
+
+### 2. Residual Analysis
+
+Residual analysis was performed to evaluate whether the ARIMA(1,0,1)(0,1,1)[12] model adequately captured the patterns in the monthly electronics retail sales data.
+
+The residual time series plot shows that most residuals fluctuate around zero, although there are several unusually large errors around 2020 and 2021, likely associated with disruptions during the COVID-19 pandemic. The residual histogram shows that most errors are concentrated near zero, but the presence of extreme values suggests that the residuals are not perfectly normally distributed.
+
+The residual ACF plot shows no substantial remaining autocorrelation. The Ljung–Box test, conducted using 24 lags and accounting for three estimated model coefficients, produced a test statistic of 13.542 and a p-value of 0.8885.
+
+Since the p-value is greater than 0.05, we fail to reject the null hypothesis of no residual autocorrelation through the tested lags. This suggests that the model has adequately captured the main temporal dependence in the data.
+
+Overall, the residual analysis supports the adequacy of the selected ARIMA model in terms of autocorrelation, although the unusually large residuals around 2020–2021 indicate that unexpected disruptions remain difficult to model.
+
+
+```{r}
+# Forecast the next five months
+arima_forecast <- forecast(
+  arima_fit,
+  h = 5,
+  level = c(80, 95)
+)
+
+# Display forecast values and prediction intervals
+arima_forecast
+
+# Plot the five-month forecast
+autoplot(arima_forecast) +
+  labs(
+    title = "ARIMA Forecast: U.S. Electronics Store Retail Sales",
+    subtitle = "January 2026 - May 2026",
+    x = "Year",
+    y = "Retail Sales (Millions of Dollars)"
+  )
+```
+
+### 3. Five-Period ARIMA Forecast
+
+Using the fitted ARIMA(1,0,1)(0,1,1)[12] model, I generated forecasts for the next five monthly periods, January through May 2026.
+
+The predicted retail sales values are approximately $5,918.15 million for January, $5,405.59 million for February, $5,648.14 million for March, $5,114.50 million for April, and $5,528.62 million for May.
+
+The forecasts show monthly fluctuations rather than a consistent upward or downward trend, reflecting the seasonal patterns observed in the historical data. January has the highest predicted sales, while April has the lowest.
+
+The forecast plot includes 80% and 95% prediction intervals, which represent uncertainty surrounding the point forecasts. These intervals generally widen over the five-month forecasting horizon, indicating that uncertainty increases when predicting further into the future.
+
+Overall, the model predicts relatively stable electronics retail sales during the first five months of 2026, with an average monthly forecast of approximately $5.52 billion. However, these predictions are subject to uncertainty and may be affected by unexpected changes in consumer behavior or economic conditions.
+
+
+```{r}
+# Split the data into training and test sets
+retail_train <- window(retail_ts, end = c(2024, 12))
+retail_test <- window(retail_ts, start = c(2025, 1))
+
+# Fit ARIMA using only the training data
+arima_train_fit <- auto.arima(
+  retail_train,
+  seasonal = TRUE,
+  stepwise = FALSE,
+  approximation = FALSE
+)
+
+# Forecast the 12 months of 2025
+arima_test_forecast <- forecast(arima_train_fit, h = 12)
+
+# Calculate out-of-sample accuracy
+accuracy(arima_test_forecast, retail_test)
+
+# Display the model selected for training data
+summary(arima_train_fit)
+```
+
+### 4. ARIMA Model Accuracy
+
+To evaluate the forecasting accuracy of the ARIMA model, I divided the dataset into a training set containing observations from January 2016 through December 2024 and a test set containing the 12 months of 2025. This is the same training and testing approach used in Assignment #4.
+
+The `auto.arima()` function selected an ARIMA(1,0,1)(0,1,1)[12] model for the training data, matching the model selected using the complete dataset.
+
+The model produced a training RMSE of 401.09 million dollars and a test RMSE of 227.33 million dollars. The test MAE was 188.90 million dollars, and the test MAPE was 3.17%, indicating that the model's forecasts differed from actual monthly sales by approximately 3.17% on average in absolute percentage terms.
+
+Compared with the forecasting methods evaluated in Assignment #4, ARIMA performed better than ETS (RMSE = 261.66) and Holt-Winters (RMSE = 278.98), but Seasonal Naive achieved the lowest test RMSE of 196.07 million dollars.
+
+Overall, the ARIMA model demonstrated good forecasting accuracy on the 2025 test set. However, Seasonal Naive remained the most accurate approach based on RMSE, suggesting that repeating the previous year's seasonal pattern is particularly effective for forecasting this dataset.
+
+
+
+
+
+
+
+
+
+
