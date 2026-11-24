@@ -75,6 +75,7 @@ Future improvements include rolling-origin cross-validation, incorporating exter
 
 - [PowerPoint Presentation](Forecasting%20U.S.%20Electronics%20Store%20Retail%20Sales.pptx) — Detailed analysis, visualizations, model comparisons, residual diagnostics, and forecasting recommendations for a technical audience.
 - [Management Report](Management%20Report%20-%20Electronics%20Retail%20Sales.docx) — One-page report summarizing the forecast, methodology, findings, limitations, and business recommendations for management.
+- [Original Dataset](Retail%20Sales%20-%20Electronics%20Stores.csv) — Historical monthly retail sales data used throughout the forecasting analysis.
 
 ## Data Source
 
